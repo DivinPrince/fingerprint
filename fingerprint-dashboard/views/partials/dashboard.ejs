@@ -1,0 +1,113 @@
+<div class="space-y-6">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">System Overview</h2>
+        <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Refresh
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Connected Devices -->
+        <div class="border border-gray-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                Connected Devices
+            </h3>
+            
+            <% if (devices.length === 0) { %>
+                <div class="text-center py-12 text-gray-400">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-lg font-medium">No Devices Connected</p>
+                    <p class="text-sm mt-2">Waiting for ESP32 devices to connect...</p>
+                </div>
+            <% } else { %>
+                <div class="space-y-3">
+                    <% devices.forEach(device => { %>
+                        <div class="bg-gray-50 rounded-lg p-4 border-l-4 <%= device.status === 'online' ? 'border-green-500' : 'border-gray-400' %>">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    <% if (device.status === 'online') { %>
+                                        <span class="relative flex h-3 w-3">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="inline-flex rounded-full h-3 w-3 bg-gray-400"></span>
+                                    <% } %>
+                                    <span class="font-semibold text-gray-800"><%= device.name %></span>
+                                </div>
+                                <span class="text-xs px-3 py-1 rounded-full <%= device.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
+                                    <%= device.status.toUpperCase() %>
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 text-sm text-gray-600 mt-3">
+                                <div>
+                                    <span class="text-gray-400">ID:</span>
+                                    <span class="font-mono text-xs ml-1"><%= device.deviceId.substring(0, 8) %>...</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">Users:</span>
+                                    <span class="font-semibold ml-1"><%= device.usersCount %></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">Access:</span>
+                                    <span class="font-semibold ml-1"><%= device.totalAccess || 0 %></span>
+                                </div>
+                            </div>
+                            <% if (device.lastHeartbeat) { %>
+                                <div class="text-xs text-gray-400 mt-2">
+                                    Last seen: <%= formatTime(device.lastHeartbeat) %>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+
+        <!-- Recent Access Logs -->
+        <div class="border border-gray-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                Recent Access Attempts
+            </h3>
+            
+            <% if (accessLogs.length === 0) { %>
+                <div class="text-center py-12 text-gray-400">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <p class="text-lg font-medium">No Access Logs</p>
+                    <p class="text-sm mt-2">Scan a fingerprint to see logs appear here</p>
+                </div>
+            <% } else { %>
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <% accessLogs.forEach(log => { %>
+                        <div class="bg-gray-50 rounded-lg p-3 border-l-4 <%= log.granted ? 'border-green-500' : 'border-red-500' %>">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-semibold text-gray-800"><%= log.userName || 'Unknown User' %></span>
+                                <span class="text-xs px-2 py-1 rounded-full <%= log.granted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                                    <%= log.granted ? '✓ GRANTED' : '✗ DENIED' %>
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500 flex items-center gap-4">
+                                <span>Card: <%= log.cardId || 'N/A' %></span>
+                                <span>•</span>
+                                <span><%= formatTime(log.timestamp) %></span>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
