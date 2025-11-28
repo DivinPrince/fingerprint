@@ -1,359 +1,359 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Security System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/css/style.css">
-</head>
-<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-    <%- include('partials/header') %>
+const express = require('express');
+const router = express.Router();
+
+// Mock data
+let devices = [
+  {
+    id: '8C128B2B1838',
+    name: 'Main Entrance',
+    status: 'online',
+    lastSeen: new Date(),
+    users: 5
+  }
+];
+
+let users = [
+  { id: 1, name: 'John Doe', phone: '+250780146487', cardId: 'CARD001', enrolled: true },
+  { id: 2, name: 'Jane Smith', phone: '+250781234567', cardId: 'CARD002', enrolled: true },
+  { id: 3, name: 'Bob Wilson', phone: '+250782345678', cardId: 'CARD003', enrolled: true }
+];
+
+let accessLogs = [
+  { id: 1, userName: 'John Doe', cardId: 'CARD001', granted: true, timestamp: new Date(Date.now() - 300000), deviceId: '8C128B2B1838', type: 'fingerprint' },
+  { id: 2, userName: 'Jane Smith', cardId: 'CARD002', granted: true, timestamp: new Date(Date.now() - 600000), deviceId: '8C128B2B1838', type: 'fingerprint' },
+  { id: 3, userName: 'Unknown', cardId: 'N/A', granted: false, timestamp: new Date(Date.now() - 900000), deviceId: '8C128B2B1838', type: 'fingerprint' },
+  { id: 4, userName: 'Bob Wilson', cardId: 'CARD003', granted: true, timestamp: new Date(Date.now() - 1200000), deviceId: '8C128B2B1838', type: 'fingerprint' }
+];
+
+let notifications = [
+  { id: 1, type: 'success', message: 'Device 8C128B2B1838 connected', timestamp: new Date(Date.now() - 3600000) },
+  { id: 2, type: 'warning', message: 'Failed access attempt detected', timestamp: new Date(Date.now() - 900000) }
+];
+
+// Helper functions
+const formatTime = (date) => {
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+  
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return date.toLocaleDateString();
+};
+
+const addNotification = (type, message) => {
+  const newNotif = {
+    id: Date.now(),
+    type,
+    message,
+    timestamp: new Date()
+  };
+  notifications = [newNotif, ...notifications].slice(0, 10);
+};
+
+// ========================================================
+//           MAIN ROUTES
+// ========================================================
+
+// Routes
+router.get('/', (req, res) => {
+  const activeTab = req.query.tab || 'dashboard';
+  const showModal = req.query.modal === 'enroll';
+  
+  const stats = {
+    totalUsers: users.length,
+    activeDevices: devices.filter(d => d.status === 'online').length,
+    todayAccess: accessLogs.filter(log => 
+      new Date(log.timestamp).toDateString() === new Date().toDateString()
+    ).length,
+    failedAttempts: accessLogs.filter(log => !log.granted).length
+  };
+
+  res.render('index', {
+    devices,
+    users,
+    accessLogs,
+    notifications,
+    stats,
+    activeTab,
+    showModal,
+    formatTime,
+    selectedDevice: devices[0]?.id || ''
+  });
+});
+
+router.post('/users/enroll', (req, res) => {
+  const { id, name, phone, cardId } = req.body;
+  
+  if (!id || !name || !phone || !cardId) {
+    addNotification('error', 'Please fill all fields');
+    return res.redirect('/?tab=users&modal=enroll');
+  }
+  
+  // Check if ID already exists
+  if (users.find(u => u.id === parseInt(id))) {
+    addNotification('error', `User ID ${id} already exists`);
+    return res.redirect('/?tab=users&modal=enroll');
+  }
+  
+  const newUser = {
+    id: parseInt(id),
+    name,
+    phone,
+    cardId,
+    enrolled: false
+  };
+  
+  users.push(newUser);
+  addNotification('info', `Enrollment started for ${name}. Please scan fingerprint on device.`);
+  res.redirect('/?tab=users');
+});
+
+router.delete('/users/:id', (req, res) => {
+  const userId = parseInt(req.params.id);
+  const user = users.find(u => u.id === userId);
+  
+  if (user) {
+    users = users.filter(u => u.id !== userId);
+    addNotification('success', `User ${user.name} deleted successfully`);
+  }
+  
+  res.redirect('/?tab=users');
+});
+
+router.post('/users/clear', (req, res) => {
+  if (users.length > 0) {
+    const userCount = users.length;
+    users = [];
+    addNotification('warning', `All ${userCount} users cleared from system`);
+  }
+  res.redirect('/?tab=users');
+});
+
+router.post('/logs/refresh', (req, res) => {
+  // Simulate new log entry
+  const randomUsers = ['John Doe', 'Jane Smith', 'Bob Wilson', 'Alice Johnson', 'Mike Brown'];
+  const newLog = {
+    id: accessLogs.length + 1,
+    userName: randomUsers[Math.floor(Math.random() * randomUsers.length)],
+    cardId: 'CARD' + (Math.floor(Math.random() * 1000)).toString().padStart(3, '0'),
+    granted: Math.random() > 0.3,
+    timestamp: new Date(),
+    deviceId: '8C128B2B1838',
+    type: 'fingerprint'
+  };
+  accessLogs.unshift(newLog);
+  
+  if (!newLog.granted) {
+    addNotification('warning', `Failed access attempt by ${newLog.userName}`);
+  } else {
+    addNotification('success', `Access granted to ${newLog.userName}`);
+  }
+  
+  res.redirect('/?tab=logs');
+});
+
+// Update device status
+router.post('/devices/refresh', (req, res) => {
+  devices = devices.map(device => ({
+    ...device,
+    lastSeen: new Date(),
+    status: Math.random() > 0.2 ? 'online' : 'offline', // 80% chance online
+    users: Math.max(1, Math.floor(Math.random() * 10)) // Random user count
+  }));
+  
+  addNotification('info', 'Device status updated');
+  res.redirect('/?tab=devices');
+});
+
+// ========================================================
+//           API ENDPOINTS FOR ESP32
+// ========================================================
+
+// API endpoint for device heartbeat
+router.post('/api/heartbeat', (req, res) => {
+  try {
+    const { deviceId, timestamp, status, usersCount } = req.body;
     
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Tabs -->
-        <div class="flex space-x-2 mb-6">
-            <% ['dashboard', 'users', 'logs', 'devices'].forEach(tab => { %>
-                <a href="/?tab=<%= tab %>" 
-                   class="px-6 py-2 rounded-lg font-medium transition-all <%= activeTab === tab ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50' : 'bg-slate-800/50 text-purple-300 hover:bg-slate-700/50' %>">
-                    <%= tab.charAt(0).toUpperCase() + tab.slice(1) %>
-                </a>
-            <% }) %>
-        </div>
+    console.log(`💓 Heartbeat from device: ${deviceId}`);
+    console.log(`Status: ${status}, Users: ${usersCount}`);
+    
+    // Update device last seen
+    const deviceIndex = devices.findIndex(d => d.id === deviceId);
+    if (deviceIndex !== -1) {
+      devices[deviceIndex].lastSeen = new Date();
+      devices[deviceIndex].status = status;
+      if (usersCount !== undefined) {
+        devices[deviceIndex].users = usersCount;
+      }
+    } else {
+      // Add new device if not found
+      devices.push({
+        id: deviceId,
+        name: `Device ${deviceId}`,
+        status: status || 'online',
+        lastSeen: new Date(),
+        users: usersCount || 0
+      });
+    }
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      message: 'Heartbeat received',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error in heartbeat:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-        <!-- Dashboard Tab -->
-        <% if (activeTab === 'dashboard') { %>
-            <div class="space-y-6">
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-purple-200 text-sm">Total Users</p>
-                                <p class="text-white text-3xl font-bold mt-1"><%= stats.totalUsers %></p>
-                            </div>
-                            <svg class="text-purple-300 w-12 h-12 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gradient-to-br from-green-600 to-green-800 rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-green-200 text-sm">Active Devices</p>
-                                <p class="text-white text-3xl font-bold mt-1"><%= stats.activeDevices %></p>
-                            </div>
-                            <svg class="text-green-300 w-12 h-12 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-blue-200 text-sm">Today's Access</p>
-                                <p class="text-white text-3xl font-bold mt-1"><%= stats.todayAccess %></p>
-                            </div>
-                            <svg class="text-blue-300 w-12 h-12 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-red-200 text-sm">Failed Attempts</p>
-                                <p class="text-white text-3xl font-bold mt-1"><%= stats.failedAttempts %></p>
-                            </div>
-                            <svg class="text-red-300 w-12 h-12 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
+// API endpoint for access logs
+router.post('/api/access', (req, res) => {
+  try {
+    const { deviceId, timestamp, userId, userName, cardId, granted, type } = req.body;
+    
+    console.log(`🔐 Access attempt from device: ${deviceId}`);
+    console.log(`User: ${userName} (ID: ${userId}), Card: ${cardId}, Granted: ${granted}`);
+    
+    // Add to access logs
+    const newLog = {
+      id: accessLogs.length + 1,
+      userName: userName || 'Unknown',
+      cardId: cardId || 'N/A',
+      granted: granted || false,
+      timestamp: new Date(parseInt(timestamp)),
+      deviceId: deviceId,
+      type: type || 'fingerprint'
+    };
+    
+    accessLogs.unshift(newLog);
+    
+    // Add notification
+    if (!granted) {
+      addNotification('warning', `Failed access attempt by ${userName} on device ${deviceId}`);
+    } else {
+      addNotification('success', `Access granted to ${userName} on device ${deviceId}`);
+    }
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      message: 'Access log recorded',
+      logId: newLog.id
+    });
+  } catch (error) {
+    console.error('Error in access log:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-                <!-- Real-time Device Status -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-white">Device Status</h2>
-                        <div class="text-sm text-purple-300">Last updated: <span id="lastUpdate"><%= new Date().toLocaleTimeString() %></span></div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <% devices.forEach(device => { %>
-                            <div class="bg-slate-700/50 rounded-lg p-4">
-                                <div class="flex justify-between items-center mb-2">
-                                    <h3 class="text-white font-semibold"><%= device.name %></h3>
-                                    <div class="flex items-center space-x-2">
-                                        <div class="w-3 h-3 rounded-full <%= device.status === 'online' ? 'bg-green-400' : 'bg-red-400' %>"></div>
-                                        <span class="text-sm <%= device.status === 'online' ? 'text-green-400' : 'text-red-400' %>">
-                                            <%= device.status %>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="text-sm text-purple-300 space-y-1">
-                                    <div>ID: <%= device.id %></div>
-                                    <div>Users: <%= device.users %></div>
-                                    <div>Last Seen: <%= formatTime(device.lastSeen) %></div>
-                                </div>
-                            </div>
-                        <% }) %>
-                    </div>
-                </div>
+// API endpoint for enrollment updates
+router.post('/api/enrollment', (req, res) => {
+  try {
+    const { deviceId, timestamp, status, success, id, name, phone, cardId, step } = req.body;
+    
+    console.log(`👤 Enrollment update from device: ${deviceId}`);
+    console.log(`Status: ${status}, Success: ${success}, User: ${name}`);
+    
+    if (success && id && name) {
+      // Check if user already exists
+      const existingUserIndex = users.findIndex(u => u.id === parseInt(id));
+      
+      if (existingUserIndex !== -1) {
+        // Update existing user
+        users[existingUserIndex].enrolled = true;
+        users[existingUserIndex].name = name;
+        if (phone) users[existingUserIndex].phone = phone;
+        if (cardId) users[existingUserIndex].cardId = cardId;
+        
+        addNotification('success', `User ${name} (ID: ${id}) updated successfully on device ${deviceId}`);
+      } else {
+        // Add new user
+        const newUser = {
+          id: parseInt(id),
+          name: name,
+          phone: phone || '',
+          cardId: cardId || `CARD${id.toString().padStart(3, '0')}`,
+          enrolled: true
+        };
+        users.push(newUser);
+        
+        addNotification('success', `New user ${name} (ID: ${id}) enrolled successfully on device ${deviceId}`);
+      }
+    } else if (!success) {
+      addNotification('error', `Enrollment failed on device ${deviceId}: ${status}`);
+    }
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      message: 'Enrollment update received'
+    });
+  } catch (error) {
+    console.error('Error in enrollment update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-                <!-- Recent Activity -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
-                    <h2 class="text-xl font-bold text-white mb-4">Recent Access Logs</h2>
-                    <div class="space-y-3">
-                        <% accessLogs.slice(0, 5).forEach(log => { %>
-                            <div class="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg">
-                                <div class="flex items-center space-x-4">
-                                    <% if (log.granted) { %>
-                                        <svg class="text-green-400 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                    <% } else { %>
-                                        <svg class="text-red-400 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                    <% } %>
-                                    <div>
-                                        <p class="text-white font-medium"><%= log.userName %></p>
-                                        <p class="text-purple-300 text-sm">Card: <%= log.cardId %></p>
-                                        <p class="text-purple-400 text-xs">Device: <%= log.deviceId %></p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium <%= log.granted ? 'text-green-400' : 'text-red-400' %>">
-                                        <%= log.granted ? 'Granted' : 'Denied' %>
-                                    </p>
-                                    <p class="text-purple-400 text-xs"><%= formatTime(log.timestamp) %></p>
-                                </div>
-                            </div>
-                        <% }) %>
-                    </div>
-                </div>
+// API endpoint for device events
+router.post('/api/event', (req, res) => {
+  try {
+    const { deviceId, timestamp, action, message, userId, userName, cardId } = req.body;
+    
+    console.log(`📱 Device event from: ${deviceId}`);
+    console.log(`Action: ${action}, Message: ${message}`);
+    
+    // Add system notification
+    addNotification('info', `Device ${deviceId}: ${message}`);
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      message: 'Event received'
+    });
+  } catch (error) {
+    console.error('Error in device event:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-                <!-- Notifications -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
-                    <h2 class="text-xl font-bold text-white mb-4">System Notifications</h2>
-                    <div class="space-y-2">
-                        <% notifications.slice(0, 5).forEach(notif => { %>
-                            <div class="p-3 bg-slate-700/50 rounded-lg flex items-start space-x-3">
-                                <svg class="w-5 h-5 mt-0.5 <%= 
-                                    notif.type === 'success' ? 'text-green-400' :
-                                    notif.type === 'warning' ? 'text-yellow-400' :
-                                    notif.type === 'error' ? 'text-red-400' : 'text-blue-400'
-                                %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                                </svg>
-                                <div class="flex-1">
-                                    <p class="text-white text-sm"><%= notif.message %></p>
-                                    <p class="text-purple-400 text-xs mt-1"><%= formatTime(notif.timestamp) %></p>
-                                </div>
-                            </div>
-                        <% }) %>
-                    </div>
-                </div>
-            </div>
-        <% } %>
+// Test endpoint for connection testing
+router.post('/api/test', (req, res) => {
+  try {
+    const { deviceId, test, timestamp } = req.body;
+    
+    console.log(`🧪 Test connection from device: ${deviceId}`);
+    
+    // Update device status
+    const deviceIndex = devices.findIndex(d => d.id === deviceId);
+    if (deviceIndex !== -1) {
+      devices[deviceIndex].lastSeen = new Date();
+      devices[deviceIndex].status = 'online';
+    }
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      message: 'Test connection successful',
+      serverTime: new Date().toISOString(),
+      deviceTime: new Date(parseInt(timestamp)).toISOString()
+    });
+  } catch (error) {
+    console.error('Error in test endpoint:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-        <!-- Users Tab -->
-        <% if (activeTab === 'users') { %>
-            <div class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-white">Enrolled Users</h2>
-                    <div class="flex space-x-3">
-                        <form method="POST" action="/users/clear" onsubmit="return confirm('Are you sure you want to clear ALL users? This cannot be undone!')">
-                            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center space-x-2 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                                <span>Clear All</span>
-                            </button>
-                        </form>
-                        <a href="/?tab=users&modal=enroll" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center space-x-2 transition-colors shadow-lg shadow-purple-500/50">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                            </svg>
-                            <span>Enroll New User</span>
-                        </a>
-                    </div>
-                </div>
+// Get device status (optional - for dashboard)
+router.get('/api/devices', (req, res) => {
+  res.json(devices);
+});
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <% users.forEach(user => { %>
-                        <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
-                            <div class="flex items-start justify-between mb-4">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-                                        <span class="text-white font-bold text-lg"><%= user.name.charAt(0) %></span>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-white font-semibold"><%= user.name %></h3>
-                                        <p class="text-purple-300 text-sm">ID: <%= user.id %></p>
-                                    </div>
-                                </div>
-                                <form method="POST" action="/users/<%= user.id %>?_method=DELETE" onsubmit="return confirm('Are you sure you want to delete this user?')">
-                                    <button type="submit" class="text-red-400 hover:text-red-300 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                </form>
-                            </div>
-                            <div class="space-y-2">
-                                <div class="flex items-center space-x-2">
-                                    <svg class="text-purple-400 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span class="text-purple-200 text-sm"><%= user.phone %></span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <svg class="text-purple-400 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
-                                    </svg>
-                                    <span class="text-purple-200 text-sm">Card: <%= user.cardId %></span>
-                                </div>
-                                <div class="inline-block px-3 py-1 rounded-full text-xs font-medium <%= user.enrolled ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400' %>">
-                                    <%= user.enrolled ? 'Enrolled' : 'Pending' %>
-                                </div>
-                            </div>
-                        </div>
-                    <% }) %>
-                </div>
-            </div>
-        <% } %>
+// Get access logs (optional - for dashboard)
+router.get('/api/logs', (req, res) => {
+  res.json(accessLogs);
+});
 
-        <!-- Logs Tab -->
-        <% if (activeTab === 'logs') { %>
-            <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-white">Access Logs</h2>
-                    <form method="POST" action="/logs/refresh">
-                        <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center space-x-2 transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                            </svg>
-                            <span>Refresh</span>
-                        </button>
-                    </form>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b border-purple-500/20">
-                                <th class="text-left py-3 px-4 text-purple-300 font-medium">Time</th>
-                                <th class="text-left py-3 px-4 text-purple-300 font-medium">User</th>
-                                <th class="text-left py-3 px-4 text-purple-300 font-medium">Card ID</th>
-                                <th class="text-left py-3 px-4 text-purple-300 font-medium">Device</th>
-                                <th class="text-left py-3 px-4 text-purple-300 font-medium">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% accessLogs.forEach(log => { %>
-                                <tr class="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
-                                    <td class="py-3 px-4 text-purple-200"><%= log.timestamp.toLocaleString() %></td>
-                                    <td class="py-3 px-4 text-white"><%= log.userName %></td>
-                                    <td class="py-3 px-4 text-purple-300"><%= log.cardId %></td>
-                                    <td class="py-3 px-4 text-purple-300"><%= log.deviceId %></td>
-                                    <td class="py-3 px-4">
-                                        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium <%= log.granted ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
-                                            <%= log.granted ? 'Granted' : 'Denied' %>
-                                        </span>
-                                    </td>
-                                </tr>
-                            <% }) %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        <% } %>
+// Get users (optional - for dashboard)
+router.get('/api/users', (req, res) => {
+  res.json(users);
+});
 
-        <!-- Devices Tab -->
-        <% if (activeTab === 'devices') { %>
-            <div class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-white">Connected Devices</h2>
-                    <form method="POST" action="/devices/refresh">
-                        <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center space-x-2 transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                            </svg>
-                            <span>Refresh Status</span>
-                        </button>
-                    </form>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <% devices.forEach(device => { %>
-                        <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-xl font-semibold text-white"><%= device.name %></h3>
-                                <div class="w-3 h-3 rounded-full <%= device.status === 'online' ? 'bg-green-400' : 'bg-red-400' %>"></div>
-                            </div>
-                            <div class="space-y-2">
-                                <p class="text-purple-300">Device ID: <span class="text-white"><%= device.id %></span></p>
-                                <p class="text-purple-300">Status: <span class="<%= device.status === 'online' ? 'text-green-400' : 'text-red-400' %>"><%= device.status %></span></p>
-                                <p class="text-purple-300">Enrolled Users: <span class="text-white"><%= device.users %></span></p>
-                                <p class="text-purple-300">Last Seen: <span class="text-white"><%= formatTime(device.lastSeen) %></span></p>
-                            </div>
-                        </div>
-                    <% }) %>
-                </div>
-            </div>
-        <% } %>
-    </div>
-
-    <!-- Enroll Modal -->
-    <% if (showModal) { %>
-        <%- include('partials/enroll-modal') %>
-    <% } %>
-
-    <!-- Auto-refresh JavaScript -->
-    <script>
-        // Auto-refresh dashboard data every 30 seconds
-        function refreshDashboard() {
-            if (window.location.href.includes('tab=dashboard')) {
-                fetch('/api/devices')
-                    .then(response => response.json())
-                    .then(devices => {
-                        // Update last updated time
-                        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-                    })
-                    .catch(error => console.error('Error refreshing dashboard:', error));
-            }
-        }
-
-        // Start auto-refresh
-        setInterval(refreshDashboard, 30000);
-
-        // Close modal on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeModal();
-            }
-        });
-
-        // Close modal when clicking outside
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('fixed') && 
-                e.target.classList.contains('inset-0') &&
-                e.target.classList.contains('bg-black/70')) {
-                closeModal();
-            }
-        });
-
-        function closeModal() {
-            const currentUrl = window.location.href;
-            if (currentUrl.includes('modal=enroll')) {
-                // Remove modal parameter from URL
-                const url = new URL(currentUrl);
-                url.searchParams.delete('modal');
-                window.location.href = url.toString();
-            }
-        }
-    </script>
-</body>
-</html>
+module.exports = router;
