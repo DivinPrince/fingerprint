@@ -1,0 +1,117 @@
+<div>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">System Events</h2>
+            <p class="text-sm text-gray-500 mt-1">Device activities and system notifications</p>
+        </div>
+        <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Refresh
+        </button>
+    </div>
+
+    <% if (events.length === 0) { %>
+        <div class="text-center py-20">
+            <svg class="w-24 h-24 mx-auto mb-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Events Yet</h3>
+            <p class="text-gray-500 mb-6">System events and notifications will appear here</p>
+            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 max-w-2xl mx-auto text-left">
+                <h4 class="font-semibold text-purple-900 mb-2">🔔 Events tracked:</h4>
+                <ul class="text-sm text-purple-800 space-y-1">
+                    <li>• Device connections and disconnections</li>
+                    <li>• Enrollment successes and failures</li>
+                    <li>• System start and restart events</li>
+                    <li>• User deletions and modifications</li>
+                </ul>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="space-y-3">
+            <% events.forEach(event => { %>
+                <% 
+                    // Determine event type styling
+                    let bgColor = 'bg-blue-50';
+                    let borderColor = 'border-blue-500';
+                    let iconColor = 'text-blue-600';
+                    let icon = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // info icon
+                    
+                    if (event.action === 'started') {
+                        bgColor = 'bg-green-50';
+                        borderColor = 'border-green-500';
+                        iconColor = 'text-green-600';
+                        icon = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'; // check
+                    } else if (event.action.includes('error') || event.action.includes('failed')) {
+                        bgColor = 'bg-red-50';
+                        borderColor = 'border-red-500';
+                        iconColor = 'text-red-600';
+                        icon = 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // error
+                    } else if (event.action.includes('enrollment')) {
+                        bgColor = 'bg-purple-50';
+                        borderColor = 'border-purple-500';
+                        iconColor = 'text-purple-600';
+                        icon = 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'; // user
+                    } else if (event.action.includes('delete') || event.action.includes('clear')) {
+                        bgColor = 'bg-orange-50';
+                        borderColor = 'border-orange-500';
+                        iconColor = 'text-orange-600';
+                        icon = 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'; // trash
+                    }
+                %>
+                
+                <div class="<%= bgColor %> border-l-4 <%= borderColor %> rounded-lg p-4">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 mt-1">
+                            <svg class="w-5 h-5 <%= iconColor %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<%= icon %>"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="font-semibold text-gray-900 capitalize">
+                                    <%= event.action.replace(/_/g, ' ') %>
+                                </h3>
+                                <span class="text-xs text-gray-500"><%= formatTime(event.timestamp) %></span>
+                            </div>
+                            <p class="text-sm text-gray-700"><%= event.message %></p>
+                            
+                            <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                <% if (event.deviceId) { %>
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Device: <span class="font-mono"><%= event.deviceId.substring(0, 8) %>...</span>
+                                    </span>
+                                <% } %>
+                                <% if (event.userName) { %>
+                                    <span>•</span>
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                        <%= event.userName %>
+                                    </span>
+                                <% } %>
+                                <% if (event.cardId) { %>
+                                    <span>•</span>
+                                    <span>Card: <%= event.cardId %></span>
+                                <% } %>
+                                <span>•</span>
+                                <span><%= new Date(event.timestamp).toLocaleString() %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+
+        <div class="mt-6 text-sm text-gray-500 flex items-center justify-between">
+            <span>Showing <%= Math.min(events.length, 10) %> of <%= events.length %> total events</span>
+            <span class="text-xs">Events are logged automatically</span>
+        </div>
+    <% } %>
+</div>
