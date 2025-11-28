@@ -18,7 +18,16 @@ app.set('views', path.join(__dirname, 'views'));
 // Routes
 app.use('/', require('./routes/index'));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Fingerprint Dashboard running on http://localhost:${PORT}`);
+// Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+const PORT = process.env.PORT || 3000;
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
+app.listen(PORT, HOST, () => {
+  console.log(`Fingerprint Dashboard running on http://${HOST}:${PORT}`);
+});
+
+module.exports = app;
