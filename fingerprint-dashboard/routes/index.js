@@ -8,7 +8,8 @@ let devices = [
     name: 'Main Entrance',
     status: 'online',
     lastSeen: new Date(),
-    users: 5
+    users: 0,
+    accessCount: 0
   }
 ];
 
@@ -19,16 +20,31 @@ let users = [
 ];
 
 let accessLogs = [
-  { id: 1, userName: 'John Doe', cardId: 'CARD001', granted: true, timestamp: new Date(Date.now() - 300000), deviceId: '8C128B2B1838', type: 'fingerprint' },
-  { id: 2, userName: 'Jane Smith', cardId: 'CARD002', granted: true, timestamp: new Date(Date.now() - 600000), deviceId: '8C128B2B1838', type: 'fingerprint' },
-  { id: 3, userName: 'Unknown', cardId: 'N/A', granted: false, timestamp: new Date(Date.now() - 900000), deviceId: '8C128B2B1838', type: 'fingerprint' },
-  { id: 4, userName: 'Bob Wilson', cardId: 'CARD003', granted: true, timestamp: new Date(Date.now() - 1200000), deviceId: '8C128B2B1838', type: 'fingerprint' }
+  { 
+    id: 1, 
+    userName: 'John Doe', 
+    cardId: 'CARD001', 
+    granted: true, 
+    timestamp: new Date(Date.now() - 300000), 
+    deviceId: '8C128B2B1838', 
+    type: 'fingerprint',
+    realData: false
+  }
 ];
 
 let notifications = [
   { id: 1, type: 'success', message: 'Device 8C128B2B1838 connected', timestamp: new Date(Date.now() - 3600000) },
   { id: 2, type: 'warning', message: 'Failed access attempt detected', timestamp: new Date(Date.now() - 900000) }
 ];
+
+// Real-time data tracking
+let realTimeStats = {
+  totalAccessToday: 0,
+  successfulAccess: 0,
+  failedAccess: 0,
+  lastDeviceUpdate: new Date(),
+  activeDevices: 0
+};
 
 // Helper functions
 const formatTime = (date) => {
@@ -51,22 +67,40 @@ const addNotification = (type, message) => {
   notifications = [newNotif, ...notifications].slice(0, 10);
 };
 
+// Update dashboard stats
+function updateDashboardStats() {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  const todayLogs = accessLogs.filter(log => new Date(log.timestamp) >= todayStart);
+  const realLogs = accessLogs.filter(log => log.realData);
+  
+  realTimeStats.totalAccessToday = todayLogs.length;
+  realTimeStats.successfulAccess = todayLogs.filter(log => log.granted).length;
+  realTimeStats.failedAccess = todayLogs.filter(log => !log.granted).length;
+  realTimeStats.activeDevices = devices.filter(d => d.status === 'online').length;
+  realTimeStats.realDataCount = realLogs.length;
+}
+
+// Auto-update stats every minute
+setInterval(updateDashboardStats, 60000);
+
 // ========================================================
 //           MAIN ROUTES
 // ========================================================
 
-// Routes
 router.get('/', (req, res) => {
   const activeTab = req.query.tab || 'dashboard';
   const showModal = req.query.modal === 'enroll';
   
+  updateDashboardStats();
+  
   const stats = {
     totalUsers: users.length,
-    activeDevices: devices.filter(d => d.status === 'online').length,
-    todayAccess: accessLogs.filter(log => 
-      new Date(log.timestamp).toDateString() === new Date().toDateString()
-    ).length,
-    failedAttempts: accessLogs.filter(log => !log.granted).length
+    activeDevices: realTimeStats.activeDevices,
+    todayAccess: realTimeStats.totalAccessToday,
+    failedAttempts: realTimeStats.failedAccess,
+    realDataCount: realTimeStats.realDataCount
   };
 
   res.render('index', {
@@ -78,7 +112,8 @@ router.get('/', (req, res) => {
     activeTab,
     showModal,
     formatTime,
-    selectedDevice: devices[0]?.id || ''
+    selectedDevice: devices[0]?.id || '',
+    realTimeStats
   });
 });
 
@@ -140,7 +175,8 @@ router.post('/logs/refresh', (req, res) => {
     granted: Math.random() > 0.3,
     timestamp: new Date(),
     deviceId: '8C128B2B1838',
-    type: 'fingerprint'
+    type: 'fingerprint',
+    realData: false
   };
   accessLogs.unshift(newLog);
   
@@ -150,6 +186,7 @@ router.post('/logs/refresh', (req, res) => {
     addNotification('success', `Access granted to ${newLog.userName}`);
   }
   
+  updateDashboardStats();
   res.redirect('/?tab=logs');
 });
 
@@ -158,11 +195,12 @@ router.post('/devices/refresh', (req, res) => {
   devices = devices.map(device => ({
     ...device,
     lastSeen: new Date(),
-    status: Math.random() > 0.2 ? 'online' : 'offline', // 80% chance online
-    users: Math.max(1, Math.floor(Math.random() * 10)) // Random user count
+    status: Math.random() > 0.2 ? 'online' : 'offline',
+    users: Math.max(1, Math.floor(Math.random() * 10))
   }));
   
   addNotification('info', 'Device status updated');
+  updateDashboardStats();
   res.redirect('/?tab=devices');
 });
 
@@ -173,16 +211,16 @@ router.post('/devices/refresh', (req, res) => {
 // API endpoint for device heartbeat
 router.post('/api/heartbeat', (req, res) => {
   try {
-    const { deviceId, timestamp, status, usersCount } = req.body;
+    const { deviceId, timestamp, status, usersCount, sensorStatus } = req.body;
     
     console.log(`💓 Heartbeat from device: ${deviceId}`);
-    console.log(`Status: ${status}, Users: ${usersCount}`);
+    console.log(`Status: ${status}, Users: ${usersCount}, Sensor: ${sensorStatus}`);
     
     // Update device last seen
     const deviceIndex = devices.findIndex(d => d.id === deviceId);
     if (deviceIndex !== -1) {
       devices[deviceIndex].lastSeen = new Date();
-      devices[deviceIndex].status = status;
+      devices[deviceIndex].status = status || 'online';
       if (usersCount !== undefined) {
         devices[deviceIndex].users = usersCount;
       }
@@ -193,14 +231,18 @@ router.post('/api/heartbeat', (req, res) => {
         name: `Device ${deviceId}`,
         status: status || 'online',
         lastSeen: new Date(),
-        users: usersCount || 0
+        users: usersCount || 0,
+        accessCount: 0
       });
     }
+    
+    realTimeStats.lastDeviceUpdate = new Date();
+    updateDashboardStats();
     
     res.status(200).json({ 
       status: 'OK', 
       message: 'Heartbeat received',
-      timestamp: new Date().toISOString()
+      serverTime: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error in heartbeat:', error);
@@ -213,28 +255,58 @@ router.post('/api/access', (req, res) => {
   try {
     const { deviceId, timestamp, userId, userName, cardId, granted, type } = req.body;
     
-    console.log(`🔐 Access attempt from device: ${deviceId}`);
+    console.log(`🔐 REAL ACCESS from device: ${deviceId}`);
     console.log(`User: ${userName} (ID: ${userId}), Card: ${cardId}, Granted: ${granted}`);
     
-    // Add to access logs
+    // Update device access count
+    const deviceIndex = devices.findIndex(d => d.id === deviceId);
+    if (deviceIndex !== -1) {
+      devices[deviceIndex].accessCount++;
+      devices[deviceIndex].lastSeen = new Date();
+    }
+    
+    // Add to access logs with real data marker
     const newLog = {
       id: accessLogs.length + 1,
-      userName: userName || 'Unknown',
-      cardId: cardId || 'N/A',
+      userName: userName || 'Unknown User',
+      cardId: cardId || `CARD${userId || '000'}`,
       granted: granted || false,
-      timestamp: new Date(parseInt(timestamp)),
+      timestamp: new Date(),
       deviceId: deviceId,
-      type: type || 'fingerprint'
+      type: type || 'fingerprint',
+      realData: true
     };
     
     accessLogs.unshift(newLog);
     
+    // Update user enrollment status if access was granted
+    if (granted && userId > 0) {
+      const userIndex = users.findIndex(u => u.id === parseInt(userId));
+      if (userIndex !== -1) {
+        users[userIndex].enrolled = true;
+        if (userName && userName !== 'Unknown User') {
+          users[userIndex].name = userName;
+        }
+      } else if (userName && userName !== 'Unknown User') {
+        // Add new user if not exists
+        users.push({
+          id: parseInt(userId),
+          name: userName,
+          phone: '',
+          cardId: cardId || `CARD${userId}`,
+          enrolled: true
+        });
+      }
+    }
+    
     // Add notification
     if (!granted) {
-      addNotification('warning', `Failed access attempt by ${userName} on device ${deviceId}`);
+      addNotification('warning', `🚫 Access DENIED for ${userName} on ${deviceId}`);
     } else {
-      addNotification('success', `Access granted to ${userName} on device ${deviceId}`);
+      addNotification('success', `✅ Access GRANTED to ${userName} on ${deviceId}`);
     }
+    
+    updateDashboardStats();
     
     res.status(200).json({ 
       status: 'OK', 
@@ -284,6 +356,8 @@ router.post('/api/enrollment', (req, res) => {
       addNotification('error', `Enrollment failed on device ${deviceId}: ${status}`);
     }
     
+    updateDashboardStats();
+    
     res.status(200).json({ 
       status: 'OK', 
       message: 'Enrollment update received'
@@ -318,9 +392,10 @@ router.post('/api/event', (req, res) => {
 // Test endpoint for connection testing
 router.post('/api/test', (req, res) => {
   try {
-    const { deviceId, test, timestamp } = req.body;
+    const { deviceId, test, timestamp, message } = req.body;
     
     console.log(`🧪 Test connection from device: ${deviceId}`);
+    console.log(`Message: ${message}`);
     
     // Update device status
     const deviceIndex = devices.findIndex(d => d.id === deviceId);
@@ -328,6 +403,8 @@ router.post('/api/test', (req, res) => {
       devices[deviceIndex].lastSeen = new Date();
       devices[deviceIndex].status = 'online';
     }
+    
+    addNotification('success', `Device ${deviceId} connected successfully`);
     
     res.status(200).json({ 
       status: 'OK', 
@@ -341,19 +418,25 @@ router.post('/api/test', (req, res) => {
   }
 });
 
-// Get device status (optional - for dashboard)
+// Get device status
 router.get('/api/devices', (req, res) => {
   res.json(devices);
 });
 
-// Get access logs (optional - for dashboard)
+// Get access logs
 router.get('/api/logs', (req, res) => {
   res.json(accessLogs);
 });
 
-// Get users (optional - for dashboard)
+// Get users
 router.get('/api/users', (req, res) => {
   res.json(users);
+});
+
+// Get stats
+router.get('/api/stats', (req, res) => {
+  updateDashboardStats();
+  res.json(realTimeStats);
 });
 
 module.exports = router;
