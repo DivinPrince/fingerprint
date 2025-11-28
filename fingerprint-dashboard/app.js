@@ -1,33 +1,19 @@
-const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
-const methodOverride = require('method-override');
-
-const app = express();
-
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(methodOverride('_method'));
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Set EJS as template engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Routes
-app.use('/', require('./routes/index'));
-
-// Health check endpoint for Railway
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-const PORT = process.env.PORT || 3000;
-const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-
-app.listen(PORT, HOST, () => {
-  console.log(`Fingerprint Dashboard running on http://${HOST}:${PORT}`);
-});
-
-module.exports = app;
+{
+  "name": "fingerprint-dashboard",
+  "version": "1.0.0",
+  "description": "Fingerprint Access Control Dashboard",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ejs": "^3.1.9",
+    "method-override": "^3.0.0",
+    "body-parser": "^1.20.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
