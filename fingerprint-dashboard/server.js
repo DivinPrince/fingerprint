@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,36 +8,39 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.static('public'));
 
-// Fix: Add request logging middleware
+// Request logging
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
 });
 
-// In-memory storage
+// Storage (in-memory for testing)
 const devices = new Map();
 const pendingCommands = new Map();
 const accessLogs = [];
 const eventLogs = [];
 
-// Fix: Simple root endpoint
-app.get('/', (req, res) => {
-    res.json({ 
-        message: 'Fingerprint Access Control API',
-        endpoints: {
-            health: '/api/health',
-            device: '/api/devices/:id',
-            command: 'POST /api/command',
-            logs: '/api/logs/access'
-        }
-    });
+// Initialize with test device
+devices.set('8C128B2B1838', {
+    deviceId: '8C128B2B1838',
+    lastSeen: new Date().toISOString(),
+    status: 'online',
+    users: [],
+    wifiRSSI: -45,
+    freeHeap: 200000
 });
 
-// Fix: Health check endpoint
+// Serve the main interface
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Health check
 app.get('/api/health', (req, res) => {
     res.json({ 
-        status: 'OK', 
+        status: 'OK',
         timestamp: new Date().toISOString(),
         stats: {
             devices: devices.size,
@@ -46,69 +50,75 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Fix: Device heartbeat with better error handling
+// Device heartbeat
 app.post('/api/devices/heartbeat', (req, res) => {
     try {
-        const { deviceId, timestamp, status } = req.body;
+        const { deviceId, timestamp, status, freeHeap, wifiRSSI } = req.body;
+        
+        console.log('📱 Heartbeat from:', deviceId);
         
         if (!deviceId) {
             return res.status(400).json({ error: 'deviceId is required' });
         }
+
+        // Update or create device
+        const device = devices.get(deviceId) || { deviceId, users: [] };
+        device.lastSeen = new Date().toISOString();
+        device.timestamp = timestamp;
+        device.status = status || 'online';
+        device.freeHeap = freeHeap;
+        device.wifiRSSI = wifiRSSI;
         
-        console.log('📱 Heartbeat from:', deviceId);
-        
-        // Store device
-        devices.set(deviceId, {
-            deviceId,
-            lastSeen: new Date().toISOString(),
-            timestamp,
-            status,
-            ip: req.ip
-        });
+        devices.set(deviceId, device);
         
         // Return pending commands
         const commands = pendingCommands.get(deviceId) || [];
-        pendingCommands.set(deviceId, []);
+        pendingCommands.set(deviceId, []); // Clear after sending
         
         res.json({ 
             success: true, 
             commands,
-            timestamp: Date.now()
+            message: 'Heartbeat received'
         });
+        
     } catch (error) {
         console.error('Heartbeat error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Device status endpoint
+// Device status update
 app.post('/api/devices/status', (req, res) => {
     try {
-        const { deviceId, users } = req.body;
+        const { deviceId, users, timestamp, wifiRSSI, freeHeap } = req.body;
+        
+        console.log('📊 Status from:', deviceId, 'Users:', users?.length || 0);
         
         if (!deviceId) {
             return res.status(400).json({ error: 'deviceId is required' });
         }
-        
-        console.log('📊 Status from:', deviceId, 'Users:', users?.length || 0);
-        
+
         if (devices.has(deviceId)) {
             const device = devices.get(deviceId);
             device.lastSeen = new Date().toISOString();
-            device.users = users;
+            device.users = users || [];
+            device.wifiRSSI = wifiRSSI;
+            device.freeHeap = freeHeap;
         }
         
-        res.json({ success: true });
+        res.json({ success: true, message: 'Status updated' });
+        
     } catch (error) {
         console.error('Status error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Get device info
+// Get device info
 app.get('/api/devices/:deviceId', (req, res) => {
     try {
         const device = devices.get(req.params.deviceId);
+        
         if (!device) {
             return res.status(404).json({ 
                 success: false, 
@@ -116,14 +126,25 @@ app.get('/api/devices/:deviceId', (req, res) => {
             });
         }
         
-        res.json({ success: true, device });
+        res.json({ 
+            success: true, 
+            device: {
+                deviceId: device.deviceId,
+                lastSeen: device.lastSeen,
+                status: device.status,
+                users: device.users || [],
+                wifiRSSI: device.wifiRSSI,
+                freeHeap: device.freeHeap
+            }
+        });
+        
     } catch (error) {
         console.error('Get device error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Command endpoint
+// Send command to device
 app.post('/api/command', (req, res) => {
     try {
         const { deviceId, type, id, name, phone, cardId } = req.body;
@@ -144,6 +165,7 @@ app.post('/api/command', (req, res) => {
             timestamp: Date.now() 
         };
         
+        // Initialize if not exists
         if (!pendingCommands.has(deviceId)) {
             pendingCommands.set(deviceId, []);
         }
@@ -151,61 +173,85 @@ app.post('/api/command', (req, res) => {
         pendingCommands.get(deviceId).push(command);
         console.log('📨 Command queued:', command);
         
-        res.json({ success: true, command });
+        res.json({ 
+            success: true, 
+            command,
+            message: 'Command queued for device'
+        });
+        
     } catch (error) {
         console.error('Command error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Access logs endpoint
+// Access logs
 app.post('/api/logs/access', (req, res) => {
     try {
-        const log = { 
-            ...req.body, 
-            receivedAt: new Date().toISOString(),
-            id: Math.random().toString(36).substr(2, 9)
-        };
+        const { deviceId, userId, userName, cardId, granted, timestamp } = req.body;
         
-        // Validate required fields
-        if (!log.deviceId || !log.userName) {
+        if (!deviceId || !userName) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
         
-        accessLogs.unshift(log);
-        if (accessLogs.length > 100) accessLogs.pop();
+        const logEntry = {
+            id: Math.random().toString(36).substr(2, 9),
+            deviceId,
+            userId: userId || 0,
+            userName,
+            cardId: cardId || 'NO_CARD',
+            granted: granted || false,
+            timestamp: timestamp || Date.now(),
+            receivedAt: new Date().toISOString()
+        };
         
-        console.log('🔐 Access:', log.userName, '-', log.granted ? 'GRANTED' : 'DENIED');
+        accessLogs.unshift(logEntry);
+        if (accessLogs.length > 1000) accessLogs.pop();
         
-        res.json({ success: true });
+        console.log('🔐 Access:', userName, '-', granted ? 'GRANTED' : 'DENIED');
+        
+        res.json({ success: true, message: 'Access log recorded' });
+        
     } catch (error) {
         console.error('Access log error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Event logs endpoint
+// Event logs
 app.post('/api/logs/event', (req, res) => {
     try {
-        const log = { 
-            ...req.body, 
-            receivedAt: new Date().toISOString(),
-            id: Math.random().toString(36).substr(2, 9)
+        const { deviceId, action, message, userId, cardId, timestamp } = req.body;
+        
+        if (!deviceId || !action) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const logEntry = {
+            id: Math.random().toString(36).substr(2, 9),
+            deviceId,
+            action,
+            message: message || '',
+            userId: userId || 0,
+            cardId: cardId || 'NO_CARD',
+            timestamp: timestamp || Date.now(),
+            receivedAt: new Date().toISOString()
         };
         
-        eventLogs.unshift(log);
-        if (eventLogs.length > 100) eventLogs.pop();
+        eventLogs.unshift(logEntry);
+        if (eventLogs.length > 1000) eventLogs.pop();
         
-        console.log('📢 Event:', log.action, '-', log.message);
+        console.log('📢 Event:', action, '-', message);
         
-        res.json({ success: true });
+        res.json({ success: true, message: 'Event log recorded' });
+        
     } catch (error) {
         console.error('Event log error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Get access logs
+// Get access logs
 app.get('/api/logs/access', (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 50, 100);
@@ -221,13 +267,14 @@ app.get('/api/logs/access', (req, res) => {
             logs: logs.slice(0, limit),
             total: logs.length
         });
+        
     } catch (error) {
         console.error('Get access logs error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Get event logs
+// Get event logs
 app.get('/api/logs/events', (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 50, 100);
@@ -243,18 +290,41 @@ app.get('/api/logs/events', (req, res) => {
             logs: logs.slice(0, limit),
             total: logs.length
         });
+        
     } catch (error) {
         console.error('Get event logs error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Fix: Error handling for undefined routes
-app.use('*', (req, res) => {
+// Get all logs (for debugging)
+app.get('/api/logs', (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        
+        res.json({
+            success: true,
+            accessLogs: accessLogs.slice(0, limit),
+            eventLogs: eventLogs.slice(0, limit),
+            stats: {
+                totalAccessLogs: accessLogs.length,
+                totalEventLogs: eventLogs.length
+            }
+        });
+        
+    } catch (error) {
+        console.error('Get all logs error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 404 handler for undefined API routes
+app.use('/api/*', (req, res) => {
     res.status(404).json({ 
-        error: 'Endpoint not found',
+        error: 'API endpoint not found',
+        method: req.method,
+        path: req.path,
         availableEndpoints: [
-            'GET /',
             'GET /api/health',
             'POST /api/devices/heartbeat',
             'POST /api/devices/status',
@@ -263,13 +333,31 @@ app.use('*', (req, res) => {
             'POST /api/logs/access',
             'POST /api/logs/event',
             'GET /api/logs/access',
-            'GET /api/logs/events'
+            'GET /api/logs/events',
+            'GET /api/logs'
         ]
+    });
+});
+
+// Serve static files for all other routes (SPA support)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+    console.error('Unhandled error:', error);
+    res.status(500).json({ 
+        error: 'Internal server error',
+        message: error.message 
     });
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Fixed Fingerprint Server running on port ${PORT}`);
-    console.log(`📍 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`🚀 Fingerprint Access Control Server running on port ${PORT}`);
+    console.log(`📍 Web Interface: http://localhost:${PORT}`);
+    console.log(`❤️  Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`📱 Device ID: 8C128B2B1838`);
+    console.log(`💾 Storage: In-memory (data resets on restart)`);
 });
