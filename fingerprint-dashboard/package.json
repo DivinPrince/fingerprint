@@ -1,7 +1,7 @@
 {
-  "name": "fingerprint-stable",
+  "name": "fingerprint-access-control",
   "version": "1.0.0",
-  "description": "Stable fingerprint access control server",
+  "description": "Fingerprint Access Control System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
