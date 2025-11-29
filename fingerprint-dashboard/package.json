@@ -1,7 +1,7 @@
 {
-  "name": "fingerprint-test",
+  "name": "fingerprint-fixed",
   "version": "1.0.0",
-  "description": "Minimal fingerprint access control server for testing",
+  "description": "Fixed fingerprint access control server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
