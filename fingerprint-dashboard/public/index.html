@@ -3,745 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fingerprint Access Control System</title>
-    <style>
-        :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --success: #27ae60;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --light: #ecf0f1;
-            --dark: #34495e;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .header {
-            background: var(--primary);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .header h1 {
-            margin-bottom: 10px;
-        }
-
-        .status-bar {
-            background: var(--dark);
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--success);
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.offline {
-            background: var(--danger);
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: var(--light);
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .card h2 {
-            color: var(--primary);
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--secondary);
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: var(--dark);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--secondary);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background: var(--secondary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #229954;
-            transform: translateY(-2px);
-        }
-
-        .btn-warning {
-            background: var(--warning);
-            color: white;
-        }
-
-        .btn-warning:hover {
-            background: #e67e22;
-            transform: translateY(-2px);
-        }
-
-        .btn:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .user-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .user-item {
-            background: white;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border-left: 4px solid var(--secondary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .user-info h4 {
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-
-        .user-info p {
-            color: #666;
-            font-size: 12px;
-        }
-
-        .user-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        .logs-container {
-            max-height: 300px;
-            overflow-y: auto;
-            background: white;
-            border-radius: 5px;
-            padding: 10px;
-        }
-
-        .log-entry {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-            font-size: 12px;
-        }
-
-        .log-entry.granted {
-            border-left: 3px solid var(--success);
-        }
-
-        .log-entry.denied {
-            border-left: 3px solid var(--danger);
-        }
-
-        .log-entry.enrollment {
-            border-left: 3px solid var(--warning);
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--secondary);
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .alert {
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-            font-weight: 500;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .enrollment-status {
-            background: #e8f4fd;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background: #ddd;
-            border-radius: 5px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        .progress {
-            height: 100%;
-            background: var(--secondary);
-            width: 0%;
-            transition: width 0.3s;
-        }
-    </style>
+    <title>Fingerprint Access Control</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔒 Fingerprint Access Control System</h1>
-            <p>Device ID: <span id="deviceId">8C128B2B1838</span></p>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-fingerprint"></i>
+            <span>BioSecure</span>
         </div>
+        <ul class="nav-links">
+            <li class="nav-item active">
+                <a href="#dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#users">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#access">
+                    <i class="fas fa-door-open"></i>
+                    <span>Access Logs</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#enrollment">
+                    <i class="fas fa-fingerprint"></i>
+                    <span>Enrollment</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
 
-        <div class="status-bar">
-            <div class="status-indicator">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Connecting...</span>
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Access Control System</h1>
+                <div class="status-indicator">
+                    <div class="status-dot online" id="statusDot"></div>
+                    <span id="statusText">System Online</span>
+                </div>
             </div>
-            <div id="lastUpdate">Last update: Never</div>
-        </div>
+            <div class="header-right">
+                <div class="device-info">
+                    <span class="device-id">Device: <strong id="deviceIdDisplay">8C128B2B1838</strong></span>
+                    <span class="last-update" id="lastUpdate">Last update: Just now</span>
+                </div>
+            </div>
+        </header>
 
-        <div class="main-content">
-            <!-- Left Column -->
-            <div class="left-column">
-                <!-- Enrollment Section -->
-                <div class="card">
-                    <h2>👤 User Enrollment</h2>
-                    <div id="enrollmentAlert"></div>
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalUsers">0</h3>
+                        <p>Registered Users</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="todayAccess">0</h3>
+                        <p>Today's Access</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="deniedAttempts">0</h3>
+                        <p>Denied Attempts</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="systemUptime">100%</h3>
+                        <p>System Uptime</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Access Activity</h3>
+                        <div class="chart-legend">
+                            <span class="legend-item granted">Granted</span>
+                            <span class="legend-item denied">Denied</span>
+                        </div>
+                    </div>
+                    <div class="chart" id="accessChart">
+                        <!-- Chart will be rendered here -->
+                        <div class="chart-placeholder">
+                            <i class="fas fa-chart-bar"></i>
+                            <p>Access data will appear here</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <div class="activity-header">
+                        <h3>Recent Activity</h3>
+                        <button class="btn btn-sm" onclick="loadAccessLogs()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="activity-list" id="recentActivity">
+                        <!-- Activity items will be added here -->
+                        <div class="empty-state">
+                            <i class="fas fa-history"></i>
+                            <p>No recent activity</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Management Section -->
+        <section id="users" class="section">
+            <div class="section-header">
+                <h2>User Management</h2>
+                <button class="btn btn-primary" onclick="showEnrollmentModal()">
+                    <i class="fas fa-user-plus"></i>
+                    Add New User
+                </button>
+            </div>
+
+            <div class="users-grid" id="usersGrid">
+                <!-- Users will be loaded here -->
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>No users registered</p>
+                    <button class="btn btn-primary" onclick="showEnrollmentModal()">
+                        Add First User
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Access Logs Section -->
+        <section id="access" class="section">
+            <div class="section-header">
+                <h2>Access Logs</h2>
+                <div class="filter-controls">
+                    <select id="logFilter" onchange="filterLogs()">
+                        <option value="all">All Access</option>
+                        <option value="granted">Granted Only</option>
+                        <option value="denied">Denied Only</option>
+                    </select>
+                    <input type="date" id="logDate" onchange="filterLogs()">
+                </div>
+            </div>
+
+            <div class="logs-container">
+                <div class="logs-header">
+                    <span>Time</span>
+                    <span>User</span>
+                    <span>Card ID</span>
+                    <span>Status</span>
+                </div>
+                <div class="logs-list" id="accessLogsList">
+                    <!-- Logs will be loaded here -->
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <p>No access logs available</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Enrollment Section -->
+        <section id="enrollment" class="section">
+            <div class="enrollment-container">
+                <div class="enrollment-form">
+                    <h2>Enroll New User</h2>
                     <form id="enrollmentForm">
                         <div class="form-group">
-                            <label for="enrollId">User ID (1-20)</label>
-                            <input type="number" id="enrollId" class="form-control" min="1" max="20" required>
+                            <label for="enrollId">User ID</label>
+                            <input type="number" id="enrollId" min="1" max="20" required>
+                            <small>Must be between 1-20</small>
                         </div>
                         <div class="form-group">
                             <label for="enrollName">Full Name</label>
-                            <input type="text" id="enrollName" class="form-control" required>
+                            <input type="text" id="enrollName" required>
                         </div>
                         <div class="form-group">
                             <label for="enrollPhone">Phone Number</label>
-                            <input type="tel" id="enrollPhone" class="form-control" required>
+                            <input type="tel" id="enrollPhone" required>
                         </div>
                         <div class="form-group">
                             <label for="enrollCardId">Card ID</label>
-                            <input type="text" id="enrollCardId" class="form-control" required>
+                            <input type="text" id="enrollCardId" required>
                         </div>
-                        <button type="submit" class="btn btn-primary" id="startEnrollmentBtn">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-fingerprint"></i>
                             Start Enrollment
                         </button>
                     </form>
+                </div>
 
-                    <div id="enrollmentStatus" class="enrollment-status hidden">
-                        <h4>Enrollment in Progress</h4>
-                        <p>User: <span id="currentEnrollName"></span></p>
-                        <p>Card ID: <span id="currentEnrollCardId"></span></p>
+                <div class="enrollment-status hidden" id="enrollmentStatus">
+                    <div class="status-header">
+                        <h3>Enrollment in Progress</h3>
                         <div class="progress-bar">
                             <div class="progress" id="enrollmentProgress"></div>
                         </div>
-                        <p id="enrollmentStep">Step 1: Place finger for first scan</p>
-                        <button class="btn btn-danger btn-sm" id="cancelEnrollmentBtn">Cancel Enrollment</button>
+                    </div>
+                    <div class="status-info">
+                        <div class="info-item">
+                            <label>User:</label>
+                            <span id="currentEnrollName">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Card ID:</label>
+                            <span id="currentEnrollCardId">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Step:</label>
+                            <span id="enrollmentStep">Waiting to start</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" onclick="cancelEnrollment()">
+                        <i class="fas fa-times"></i>
+                        Cancel Enrollment
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings" class="section">
+            <div class="settings-container">
+                <div class="settings-card">
+                    <h3>System Controls</h3>
+                    <div class="control-group">
+                        <button class="btn btn-warning" onclick="clearAllUsers()">
+                            <i class="fas fa-trash"></i>
+                            Clear All Users
+                        </button>
+                        <button class="btn btn-info" onclick="refreshSystemStatus()">
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh Status
+                        </button>
                     </div>
                 </div>
 
-                <!-- System Control Section -->
-                <div class="card">
-                    <h2>⚙️ System Control</h2>
-                    <div class="form-group">
-                        <button class="btn btn-warning" id="refreshStatusBtn">Refresh Status</button>
-                        <button class="btn btn-danger" id="clearAllBtn">Clear All Users</button>
-                    </div>
-                    
-                    <div class="stats">
-                        <div class="stat-card">
-                            <div class="stat-number" id="totalUsers">0</div>
-                            <div class="stat-label">Total Users</div>
+                <div class="settings-card">
+                    <h3>Device Information</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Device ID:</label>
+                            <span id="settingsDeviceId">8C128B2B1838</span>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="todayAccess">0</div>
-                            <div class="stat-label">Today Access</div>
+                        <div class="info-item">
+                            <label>Status:</label>
+                            <span class="status-badge online" id="settingsStatus">Online</span>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="deniedAttempts">0</div>
-                            <div class="stat-label">Denied Attempts</div>
+                        <div class="info-item">
+                            <label>Last Seen:</label>
+                            <span id="settingsLastSeen">-</span>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Real-time Logs -->
-                <div class="card">
-                    <h2>📊 Access Logs</h2>
-                    <div class="logs-container" id="accessLogs">
-                        <div class="log-entry">System started. Waiting for events...</div>
+                        <div class="info-item">
+                            <label>Registered Users:</label>
+                            <span id="settingsUserCount">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
+        </section>
+    </main>
 
-            <!-- Right Column -->
-            <div class="right-column">
-                <!-- User Management -->
-                <div class="card">
-                    <h2>👥 Registered Users</h2>
-                    <div class="user-list" id="userList">
-                        <div class="user-item">
-                            <div class="user-info">
-                                <h4>Loading users...</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
 
-                <!-- Device Events -->
-                <div class="card">
-                    <h2>🔔 System Events</h2>
-                    <div class="logs-container" id="eventLogs">
-                        <div class="log-entry">System initialized</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        class FingerprintController {
-            constructor() {
-                this.deviceId = '8C128B2B1838';
-                this.serverUrl = 'http://your-server.com/api'; // Update with your server URL
-                this.isOnline = false;
-                this.enrollmentActive = false;
-                this.users = [];
-                this.accessLogs = [];
-                this.eventLogs = [];
-                
-                this.initializeEventListeners();
-                this.startPolling();
-            }
-
-            initializeEventListeners() {
-                // Enrollment form
-                document.getElementById('enrollmentForm').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.startEnrollment();
-                });
-
-                // System controls
-                document.getElementById('refreshStatusBtn').addEventListener('click', () => {
-                    this.getSystemStatus();
-                });
-
-                document.getElementById('clearAllBtn').addEventListener('click', () => {
-                    this.clearAllUsers();
-                });
-
-                document.getElementById('cancelEnrollmentBtn').addEventListener('click', () => {
-                    this.cancelEnrollment();
-                });
-            }
-
-            async startPolling() {
-                // Poll for status every 5 seconds
-                setInterval(() => {
-                    this.getSystemStatus();
-                }, 5000);
-
-                // Initial status check
-                this.getSystemStatus();
-            }
-
-            async sendCommand(command) {
-                try {
-                    const response = await fetch(`${this.serverUrl}/command`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            deviceId: this.deviceId,
-                            ...command
-                        })
-                    });
-
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    
-                    const data = await response.json();
-                    return data;
-                } catch (error) {
-                    console.error('Error sending command:', error);
-                    this.showAlert('Error communicating with device', 'danger');
-                    return null;
-                }
-            }
-
-            async getSystemStatus() {
-                try {
-                    const response = await fetch(`${this.serverUrl}/status?deviceId=${this.deviceId}`);
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    
-                    const data = await response.json();
-                    this.updateUI(data);
-                    this.isOnline = true;
-                    this.updateStatus(true);
-                } catch (error) {
-                    console.error('Error fetching status:', error);
-                    this.isOnline = false;
-                    this.updateStatus(false);
-                }
-            }
-
-            async startEnrollment() {
-                const id = document.getElementById('enrollId').value;
-                const name = document.getElementById('enrollName').value;
-                const phone = document.getElementById('enrollPhone').value;
-                const cardId = document.getElementById('enrollCardId').value;
-
-                if (!id || !name || !phone || !cardId) {
-                    this.showAlert('Please fill all fields', 'warning');
-                    return;
-                }
-
-                const command = {
-                    type: 'enroll',
-                    id: parseInt(id),
-                    name: name,
-                    phone: phone,
-                    cardId: cardId
-                };
-
-                this.showAlert('Starting enrollment process...', 'warning');
-                
-                const result = await this.sendCommand(command);
-                if (result && result.success) {
-                    this.enrollmentActive = true;
-                    this.showEnrollmentStatus(name, cardId);
-                    this.monitorEnrollment(parseInt(id));
-                }
-            }
-
-            async monitorEnrollment(userId) {
-                // Poll for enrollment status
-                const checkInterval = setInterval(async () => {
-                    const status = await this.getSystemStatus();
-                    if (!this.enrollmentActive) {
-                        clearInterval(checkInterval);
-                        return;
-                    }
-
-                    // Check if enrollment is complete
-                    const user = this.users.find(u => u.id === userId);
-                    if (user && user.name) {
-                        clearInterval(checkInterval);
-                        this.enrollmentActive = false;
-                        this.hideEnrollmentStatus();
-                        this.showAlert(`Enrollment completed for ${user.name}`, 'success');
-                    }
-                }, 2000);
-            }
-
-            async deleteUser(userId) {
-                if (!confirm('Are you sure you want to delete this user?')) return;
-
-                const command = {
-                    type: 'delete',
-                    id: userId
-                };
-
-                const result = await this.sendCommand(command);
-                if (result && result.success) {
-                    this.showAlert('User deleted successfully', 'success');
-                    this.getSystemStatus();
-                }
-            }
-
-            async clearAllUsers() {
-                if (!confirm('This will delete ALL users. Are you sure?')) return;
-
-                const command = {
-                    type: 'clear'
-                };
-
-                const result = await this.sendCommand(command);
-                if (result && result.success) {
-                    this.showAlert('All users cleared successfully', 'success');
-                    this.getSystemStatus();
-                }
-            }
-
-            cancelEnrollment() {
-                this.enrollmentActive = false;
-                this.hideEnrollmentStatus();
-                this.showAlert('Enrollment cancelled', 'warning');
-            }
-
-            updateUI(data) {
-                this.updateUserList(data.users || []);
-                this.updateStats(data);
-                this.updateLogs(data);
-                this.updateLastUpdate();
-            }
-
-            updateUserList(users) {
-                this.users = users;
-                const userList = document.getElementById('userList');
-                
-                if (users.length === 0) {
-                    userList.innerHTML = '<div class="user-item"><div class="user-info"><h4>No users registered</h4></div></div>';
-                    return;
-                }
-
-                userList.innerHTML = users.map(user => `
-                    <div class="user-item">
-                        <div class="user-info">
-                            <h4>${user.name}</h4>
-                            <p>ID: ${user.id} | Card: ${user.cardId} | Phone: ${user.phone}</p>
-                        </div>
-                        <div class="user-actions">
-                            <button class="btn btn-danger btn-sm" onclick="controller.deleteUser(${user.id})">
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            updateStats(data) {
-                document.getElementById('totalUsers').textContent = this.users.length;
-                // You can add more stats based on your data structure
-            }
-
-            updateLogs(data) {
-                // Update access logs
-                if (data.recentAccess) {
-                    this.accessLogs = data.recentAccess;
-                    const accessLogsElement = document.getElementById('accessLogs');
-                    accessLogsElement.innerHTML = this.accessLogs.map(log => `
-                        <div class="log-entry ${log.granted ? 'granted' : 'denied'}">
-                            <strong>${new Date(log.timestamp).toLocaleTimeString()}</strong><br>
-                            ${log.userName} (Card: ${log.cardId}) - ${log.granted ? 'ACCESS GRANTED' : 'ACCESS DENIED'}
-                        </div>
-                    `).join('');
-                }
-
-                // Update event logs
-                if (data.recentEvents) {
-                    this.eventLogs = data.recentEvents;
-                    const eventLogsElement = document.getElementById('eventLogs');
-                    eventLogsElement.innerHTML = this.eventLogs.map(event => `
-                        <div class="log-entry enrollment">
-                            <strong>${new Date(event.timestamp).toLocaleTimeString()}</strong><br>
-                            ${event.action}: ${event.message}
-                        </div>
-                    `).join('');
-                }
-            }
-
-            updateStatus(online) {
-                const statusDot = document.getElementById('statusDot');
-                const statusText = document.getElementById('statusText');
-                
-                if (online) {
-                    statusDot.className = 'status-dot';
-                    statusText.textContent = 'Online';
-                } else {
-                    statusDot.className = 'status-dot offline';
-                    statusText.textContent = 'Offline';
-                }
-            }
-
-            updateLastUpdate() {
-                document.getElementById('lastUpdate').textContent = 
-                    `Last update: ${new Date().toLocaleTimeString()}`;
-            }
-
-            showEnrollmentStatus(name, cardId) {
-                document.getElementById('currentEnrollName').textContent = name;
-                document.getElementById('currentEnrollCardId').textContent = cardId;
-                document.getElementById('enrollmentStatus').classList.remove('hidden');
-                document.getElementById('enrollmentForm').classList.add('hidden');
-            }
-
-            hideEnrollmentStatus() {
-                document.getElementById('enrollmentStatus').classList.add('hidden');
-                document.getElementById('enrollmentForm').classList.remove('hidden');
-                document.getElementById('enrollmentForm').reset();
-            }
-
-            showAlert(message, type) {
-                const alertDiv = document.getElementById('enrollmentAlert');
-                alertDiv.innerHTML = `
-                    <div class="alert alert-${type}">
-                        ${message}
-                    </div>
-                `;
-                
-                setTimeout(() => {
-                    alertDiv.innerHTML = '';
-                }, 5000);
-            }
-
-            addAccessLog(entry) {
-                this.accessLogs.unshift(entry);
-                if (this.accessLogs.length > 50) this.accessLogs.pop();
-                this.updateLogs({ recentAccess: this.accessLogs });
-            }
-
-            addEventLog(entry) {
-                this.eventLogs.unshift(entry);
-                if (this.eventLogs.length > 50) this.eventLogs.pop();
-                this.updateLogs({ recentEvents: this.eventLogs });
-            }
-        }
-
-        // Initialize the controller when page loads
-        let controller;
-        document.addEventListener('DOMContentLoaded', () => {
-            controller = new FingerprintController();
-        });
-    </script>
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
 </body>
 </html>
