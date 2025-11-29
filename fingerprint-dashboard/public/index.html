@@ -1,69 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Fingerprint System Dashboard</title>
-  <style>
-    body { font-family: Arial; margin: 20px; }
-    h1 { color: #333; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f4f4f4; }
-    .log { max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
-  </style>
+<meta charset="UTF-8">
+<title>Fingerprint Dashboard</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Fingerprint System Dashboard</h1>
+<h1>Fingerprint Dashboard</h1>
+<div id="logs"></div>
 
-  <h2>Heartbeats</h2>
-  <div id="heartbeats" class="log"></div>
-
-  <h2>Access Logs</h2>
-  <div id="accessLogs" class="log"></div>
-
-  <h2>Send Command</h2>
-  <form id="commandForm">
-    Device ID: <input type="text" id="deviceId" required>
-    Command Type:
-    <select id="commandType">
-      <option value="enroll">Enroll</option>
-      <option value="delete">Delete</option>
-      <option value="clear">Clear</option>
-    </select>
-    User ID: <input type="number" id="userId">
-    <button type="submit">Send</button>
-  </form>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-
-    const heartbeatsDiv = document.getElementById("heartbeats");
-    const accessLogsDiv = document.getElementById("accessLogs");
-
-    socket.on("heartbeat", data => {
-      heartbeatsDiv.innerHTML += JSON.stringify(data) + "<br>";
-      heartbeatsDiv.scrollTop = heartbeatsDiv.scrollHeight;
-    });
-
-    socket.on("access", data => {
-      accessLogsDiv.innerHTML += JSON.stringify(data) + "<br>";
-      accessLogsDiv.scrollTop = accessLogsDiv.scrollHeight;
-    });
-
-    document.getElementById("commandForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const deviceId = document.getElementById("deviceId").value;
-      const commandType = document.getElementById("commandType").value;
-      const userId = parseInt(document.getElementById("userId").value) || 0;
-
-      await fetch("/api/commands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, type: commandType, id: userId })
-      });
-
-      alert("Command sent!");
-    });
-  </script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
