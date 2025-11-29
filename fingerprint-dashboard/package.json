@@ -1,14 +1,26 @@
 {
   "name": "fingerprint-control-system",
   "version": "1.0.0",
-  "description": "Fingerprint access control system",
+  "description": "Fingerprint access control system with ESP32 and A6 GSM",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
+  "keywords": [
+    "fingerprint",
+    "esp32",
+    "access-control",
+    "gsm"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
