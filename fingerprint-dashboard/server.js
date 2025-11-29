@@ -236,6 +236,11 @@ app.post('/api/clear', (req, res) => {
   res.json({ success: true, message: 'Clear all command sent' });
 });
 
+// Serve the main page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`========================================`);
